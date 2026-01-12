@@ -11,62 +11,12 @@ var app = builder.Build();
 // http requests body is empty in this case, use for PUT/POST with body content
 app.Run(async (HttpContext context) =>
 {
-    if (context.Request.Method == "GET")
+    foreach (var key in context.Request.Query.Keys)
     {
-        if (context.Request.Path.StartsWithSegments("/"))
-        {
-            // context.Request.Method fo all urls
-            await context.Response.WriteAsync($"The method is: {context.Request.Method}\r\n");
-            await context.Response.WriteAsync($"The URL is: {context.Request.Path}\r\n");
-
-            await context.Response.WriteAsync($"\r\nHeader: \r\n");
-            foreach (var key in context.Request.Headers.Keys)
-            {
-                await context.Response.WriteAsync($"{key} : {context.Request.Headers[key]}\r\n");
-            }
-        }
-        else if (context.Request.Path.StartsWithSegments("/employees"))
-        {
-            List<Employee> listEmployees = EmployeesRepository.GetEmployees();
-            foreach (var emp in listEmployees)
-            {
-                await context.Response.WriteAsync($"Id: {emp.Id}, Name: {emp.Name}, Position: {emp.Position}, Salary: {emp.Salary}\r\n");
-            }
-        }
+        await context.Response.WriteAsync($"{key}: {context.Request.Query[key]}\r\n");
     }
-
-    else if (context.Request.Method == "POST") 
-    { 
-        if (context.Request.Path.StartsWithSegments("/employees")){
-            using var reader = new StreamReader(context.Request.Body);
-            var body = await reader.ReadToEndAsync();
-            var employee  = JsonSerializer.Deserialize<Employee>(body);
-
-            EmployeesRepository.AddEmployee(employee);
-            
-        }
-    }
-
-    else if (context.Request.Method == "PUT")
-    {
-        if (context.Request.Path.StartsWithSegments("/employees"))
-        {
-            using var reader = new StreamReader(context.Request.Body);
-            var body = await reader.ReadToEndAsync();
-            var employee = JsonSerializer.Deserialize<Employee>(body);
-
-            var check  = EmployeesRepository.UpdateEmployee(employee);
-            if (check)
-            {
-                await context.Response.WriteAsync($"Employee with Id: {employee?.Id} updated successfully.\r\n");
-            }
-            else
-            {
-                await context.Response.WriteAsync($"Employee with Id: {employee?.Id} not found.\r\n");
-            }
-
-        }
-    }
+    //await context.Response.WriteAsync(context.Request.QueryString.ToString());
+    
     // in browser, you can see the result
     // with http://localhost:5145/ or http://localhost:5145/test and so on.
     // although there is no visible middleware component.
