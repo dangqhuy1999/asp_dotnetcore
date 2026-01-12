@@ -41,11 +41,32 @@ app.Run(async (HttpContext context) =>
             using var reader = new StreamReader(context.Request.Body);
             var body = await reader.ReadToEndAsync();
             var employee  = JsonSerializer.Deserialize<Employee>(body);
+
             EmployeesRepository.AddEmployee(employee);
             
         }
     }
 
+    else if (context.Request.Method == "PUT")
+    {
+        if (context.Request.Path.StartsWithSegments("/employees"))
+        {
+            using var reader = new StreamReader(context.Request.Body);
+            var body = await reader.ReadToEndAsync();
+            var employee = JsonSerializer.Deserialize<Employee>(body);
+
+            var check  = EmployeesRepository.UpdateEmployee(employee);
+            if (check)
+            {
+                await context.Response.WriteAsync($"Employee with Id: {employee?.Id} updated successfully.\r\n");
+            }
+            else
+            {
+                await context.Response.WriteAsync($"Employee with Id: {employee?.Id} not found.\r\n");
+            }
+
+        }
+    }
     // in browser, you can see the result
     // with http://localhost:5145/ or http://localhost:5145/test and so on.
     // although there is no visible middleware component.
@@ -90,6 +111,21 @@ static class EmployeesRepository
         
     }
     
+    public static bool UpdateEmployee(Employee? employee)
+    {
+        if (employee is not null)
+        {
+            var emp  =  employees.FirstOrDefault(e => e.Id == employee.Id); // Has Value/Null to prevent not found element exception
+            if (emp is not null)
+            {
+                emp.Name = employee.Name;
+                emp.Position = employee.Position;
+                emp.Salary = employee.Salary;
+                return true;
+            }
+        }
+        return false;
+    }
 }
 
 // I already Click yes to install certificates for http requests.
