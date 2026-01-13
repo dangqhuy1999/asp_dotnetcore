@@ -11,32 +11,40 @@ var app = builder.Build();
 // http requests body is empty in this case, use for PUT/POST with body content
 app.Run(async (HttpContext context) =>
 {
+
+
     if (context.Request.Path.StartsWithSegments("/"))
     {
         if (context.Request.Method == "GET")
         {
-            // context.Request.Method fo all urls
-            await context.Response.WriteAsync($"The method is: {context.Request.Method}\r\n");
-            await context.Response.WriteAsync($"The URL is: {context.Request.Path}\r\n");
+            context.Response.Headers["Content-Type"] = "text/html";
 
-            await context.Response.WriteAsync($"\r\nHeader: \r\n");
+            // context.Request.Method fo all urls
+            await context.Response.WriteAsync($"The method is: {context.Request.Method}<br/>");
+            await context.Response.WriteAsync($"The URL is: {context.Request.Path}<br/>");
+
+            await context.Response.WriteAsync($"<b>Header: </b>");
+            await context.Response.WriteAsync($"<ul>");
             foreach (var key in context.Request.Headers.Keys)
             {
-                await context.Response.WriteAsync($"{key} : {context.Request.Headers[key]}\r\n");
+                await context.Response.WriteAsync($"<li><b>{key}</b> : {context.Request.Headers[key]}<br/></li>");
             }
+            await context.Response.WriteAsync($"</ul>");
         }
 
     }
     else if (context.Request.Path.StartsWithSegments("/employees"))
     {
         if (context.Request.Method == "GET")
-        {            List<Employee> listEmployees = EmployeesRepository.GetEmployees();
+        {
+            List<Employee> listEmployees = EmployeesRepository.GetEmployees();
             foreach (var emp in listEmployees)
             {
                 await context.Response.WriteAsync($"Id: {emp.Id}, Name: {emp.Name}, Position: {emp.Position}, Salary: {emp.Salary}\r\n");
             }
-        }
 
+            context.Response.StatusCode = 200; // successfull to get
+        }
         else if (context.Request.Method == "POST")
         {
             using var reader = new StreamReader(context.Request.Body);
@@ -44,11 +52,12 @@ app.Run(async (HttpContext context) =>
             var employee = JsonSerializer.Deserialize<Employee>(body);
 
             EmployeesRepository.AddEmployee(employee);
+            context.Response.StatusCode = 201; // successfull to create
         }
 
         else if (context.Request.Method == "PUT")
         {
-            
+
             using var reader = new StreamReader(context.Request.Body);
             var body = await reader.ReadToEndAsync();
             var employee = JsonSerializer.Deserialize<Employee>(body);
@@ -56,12 +65,16 @@ app.Run(async (HttpContext context) =>
             var check = EmployeesRepository.UpdateEmployee(employee);
             if (check)
             {
-                await context.Response.WriteAsync($"Employee with Id: {employee?.Id} updated successfully.\r\n");
+                context.Response.StatusCode = 204; // 204 must be exlude with other Context.Response.WriteAsync notification
+                // await context.Response.WriteAsync($"Employee with Id: {employee?.Id} updated successfully.\r\n");
+
+                return;
             }
             else
             {
                 await context.Response.WriteAsync($"Employee with Id: {employee?.Id} not found.\r\n");
             }
+            
         }
 
         else if (context.Request.Method == "DELETE")
@@ -93,9 +106,9 @@ app.Run(async (HttpContext context) =>
 
     }
 
-           // in browser, you can see the result
-        // with http://localhost:5145/ or http://localhost:5145/test and so on.
-        // although there is no visible middleware component.
+    // in browser, you can see the result
+    // with http://localhost:5145/ or http://localhost:5145/test and so on.
+    // although there is no visible middleware component.
 });
 
 app.Run();
