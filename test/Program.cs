@@ -76,16 +76,24 @@ app.Run(async (HttpContext context) =>
             if (context.Request.Query.ContainsKey("id")){ // looking for the 'id' of employee
                 var id = context.Request.Query["id"]; // id is string value
                 if(int.TryParse(id, out int employeeId))
-                {
-                    var result = EmployeesRepository.DeleteEmployee(employeeId);
-                    if (result)
+                {s
+                    if (context.Request.Headers["Authorization"] == "Franklin")
                     {
-                        await context.Response.WriteAsync($"Employee {employeeId} is deleted succesfully!");
+                        var result = EmployeesRepository.DeleteEmployee(employeeId);
+                        if (result)
+                        {
+                            await context.Response.WriteAsync($"Employee {employeeId} is deleted succesfully!");
+                        }
+                        else
+                        {
+                            await context.Response.WriteAsync($"Employee not found!");
+                        }
                     }
                     else
                     {
-                        await context.Response.WriteAsync($"Employee not found!");
+                        await context.Response.WriteAsync("You are not authorized to delete.");
                     }
+                    
                 }
             }
         }
