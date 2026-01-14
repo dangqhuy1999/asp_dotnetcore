@@ -35,26 +35,66 @@ app.Run(async (HttpContext context) =>
     }
     else if (context.Request.Path.StartsWithSegments("/employees"))
     {
+        // throw new Exception("Test Exception!"); test 500 status code
+
         if (context.Request.Method == "GET")
         {
-            List<Employee> listEmployees = EmployeesRepository.GetEmployees();
-            foreach (var emp in listEmployees)
+            if (context.Request.Query.ContainsKey("id"))
             {
-                await context.Response.WriteAsync($"Id: {emp.Id}, Name: {emp.Name}, Position: {emp.Position}, Salary: {emp.Salary}\r\n");
+                // looking for the 'id' of employee
+                var id = context.Request.Query["id"]; // id is string value
+                if (int.TryParse(id, out int employeeId))
+                {
+                    var employee = EmployeesRepository.GetEmployeeByID(employeeId);
+                    if (employee != null)
+                    {
+                        await context.Response.WriteAsync($"Name: {employee.Name}\r\n");
+                        await context.Response.WriteAsync($"Position: {employee.Position}\r\n");
+                        await context.Response.WriteAsync($"Salary: {employee.Salary}\r\n");
+                    }
+                    else
+                    {
+                        context.Response.StatusCode = 404;
+                        await context.Response.WriteAsync("Element not found!");
+                    }
+                }
             }
-
-            context.Response.StatusCode = 200; // successfull to get
+            else
+            {
+                //get all employees information
+                context.Response.StatusCode = 200; // successfull to get
+                List<Employee> listEmployees = EmployeesRepository.GetEmployees();
+                foreach (var emp in listEmployees)
+                {
+                    await context.Response.WriteAsync($"Id: {emp.Id}, Name: {emp.Name}, Position: {emp.Position}, Salary: {emp.Salary}\r\n");
+                }
+            }
         }
         else if (context.Request.Method == "POST")
         {
             using var reader = new StreamReader(context.Request.Body);
             var body = await reader.ReadToEndAsync();
-            var employee = JsonSerializer.Deserialize<Employee>(body);
+            try
+            {
+                var employee = JsonSerializer.Deserialize<Employee>(body);
 
-            EmployeesRepository.AddEmployee(employee);
-            context.Response.StatusCode = 201; // successfull to create
+                if (employee is null || employee.Id <= 0)
+                {
+                    context.Response.StatusCode = 400;  
+                    
+                    return;
+                }
+                EmployeesRepository.AddEmployee(employee);
+                context.Response.StatusCode = 201; // successfull to create
+                await context.Response.WriteAsync($"Create Successfully!");
+            }
+            catch (Exception ex)
+            {
+                context.Response.StatusCode = 400;
+                await context.Response.WriteAsync($"{ex.Message}");
+                return; 
+            }
         }
-
         else if (context.Request.Method == "PUT")
         {
 
@@ -74,9 +114,8 @@ app.Run(async (HttpContext context) =>
             {
                 await context.Response.WriteAsync($"Employee with Id: {employee?.Id} not found.\r\n");
             }
-            
-        }
 
+        }
         else if (context.Request.Method == "DELETE")
         {
             if (context.Request.Query.ContainsKey("id"))
@@ -93,11 +132,14 @@ app.Run(async (HttpContext context) =>
                         }
                         else
                         {
+                            context.Response.StatusCode = 404;
+
                             await context.Response.WriteAsync($"Employee not found!");
                         }
                     }
                     else
                     {
+                        context.Response.StatusCode = 401;
                         await context.Response.WriteAsync("You are not authorized to delete.");
                     }
                 }
@@ -105,7 +147,14 @@ app.Run(async (HttpContext context) =>
         }
 
     }
-
+    else if (context.Request.Path.StartsWithSegments("/redirect"))
+    {
+        context.Response.Redirect("/employees");
+    }
+    else
+    {
+        context.Response.StatusCode = 404;
+    }
     // in browser, you can see the result
     // with http://localhost:5145/ or http://localhost:5145/test and so on.
     // although there is no visible middleware component.
@@ -142,6 +191,11 @@ static class EmployeesRepository
         new Employee(4, "Diana Prince", "UX Designer", 85000)
     };
     public static List<Employee> GetEmployees() => employees;
+    public static Employee? GetEmployeeByID(int id)
+    {
+        return employees.FirstOrDefault(x => x.Id==id);
+        
+    }
     public static void AddEmployee(Employee? emp)
     {
         if (emp is not null)
